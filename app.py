@@ -1,4 +1,3 @@
-import html
 import json
 import os
 import uuid
@@ -8,7 +7,7 @@ from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -88,26 +87,19 @@ async def summarize(transcript: str) -> str:
         raise HTTPException(502, f"Respons layanan AI tidak dapat dibaca: {exc}") from exc
 
 
-def page(body: str) -> HTMLResponse:
-    return HTMLResponse(f"""<!doctype html><html lang="id"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mom Taker</title>
-<style>body{{font:16px system-ui;max-width:850px;margin:40px auto;padding:0 20px;color:#222}}h1{{margin-bottom:4px}}.muted{{color:#666}}form,.card{{border:1px solid #ddd;border-radius:12px;padding:20px;margin:20px 0}}input,button{{font:inherit;margin:8px 0}}button{{padding:9px 16px;cursor:pointer}}pre{{white-space:pre-wrap;font:inherit;line-height:1.55}}a{{color:#175c9e}}</style>
-<body><h1>Mom Taker</h1><p class="muted">Unggah transkrip atau rekaman untuk membuat notulen rapat.</p>{body}</body></html>""")
-
-
-@app.get("/", response_class=HTMLResponse)
-async def home():
+@app.get("/api/meetings")
+async def list_meetings():
     meetings = []
     for path in sorted(DATA_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
         try:
             item = json.loads(path.read_text(encoding="utf-8"))
-            meetings.append(f'<li><a href="/meetings/{item["id"]}">{html.escape(item["title"])}</a> <span class="muted">{html.escape(item["created_at"])}</span></li>')
+            meetings.append({key: item[key] for key in ("id", "title", "created_at")})
         except (OSError, ValueError, KeyError):
             continue
-    body = f"""<form action="/meetings" method="post" enctype="multipart/form-data"><label>Nama rapat (opsional)<br><input name="title" maxlength="120" placeholder="Contoh: Weekly Product Sync"></label><br><label>File transkrip (.txt/.md) atau audio (.mp3, .m4a, .wav, .webm, .mp4)<br><input type="file" name="file" required accept=".txt,.md,.mp3,.m4a,.wav,.webm,.mp4,.mpeg,.mpga"></label><br><button type="submit">Buat notulen</button></form><h2>Notulen tersimpan</h2><ul>{''.join(meetings) or '<li class="muted">Belum ada notulen.</li>'}</ul>"""
-    return page(body)
+    return meetings
 
 
-@app.post("/meetings", response_class=HTMLResponse)
+@app.post("/api/meetings", status_code=201)
 async def create_meeting(file: UploadFile = File(...), title: str = Form("")):
     filename = Path(file.filename or "").name
     suffix = Path(filename).suffix.lower()
@@ -136,10 +128,10 @@ async def create_meeting(file: UploadFile = File(...), title: str = Form("")):
         "notes": notes,
     }
     (DATA_DIR / f"{meeting_id}.json").write_text(json.dumps(meeting, ensure_ascii=False, indent=2), encoding="utf-8")
-    return HTMLResponse(status_code=303, headers={"Location": f"/meetings/{meeting_id}"})
+    return meeting
 
 
-@app.get("/meetings/{meeting_id}", response_class=HTMLResponse)
+@app.get("/api/meetings/{meeting_id}")
 async def get_meeting(meeting_id: str):
     if not meeting_id.isalnum() or len(meeting_id) != 32:
         raise HTTPException(404, "Notulen tidak ditemukan.")
@@ -148,8 +140,9 @@ async def get_meeting(meeting_id: str):
         meeting = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise HTTPException(404, "Notulen tidak ditemukan.") from exc
-    title = html.escape(meeting["title"])
-    notes = html.escape(meeting["notes"])
-    transcript = html.escape(meeting["transcript"])
-    body = f"""<p><a href="/">← Semua notulen</a></p><h2>{title}</h2><p class="muted">{html.escape(meeting["created_at"])}</p><section class="card"><h3>Notulen</h3><pre>{notes}</pre></section><details class="card"><summary>Transkrip sumber</summary><pre>{transcript}</pre></details>"""
-    return page(body)
+    return meeting
+
+
+DIST_DIR = APP_DIR / "frontend" / "dist"
+if DIST_DIR.exists():
+    app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="frontend")

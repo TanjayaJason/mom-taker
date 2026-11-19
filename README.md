@@ -1,15 +1,17 @@
 # Mom Taker
 
-Local-first meeting note taker MVP. Upload a UTF-8 transcript (`.txt` or `.md`) or an audio file (`.mp3`, `.m4a`, `.wav`, `.webm`, `.mp4`); Mom Taker creates Indonesian notes with a configurable OpenAI-compatible API.
+Mom Taker membuat notulen rapat berbahasa Indonesia dari transkrip atau rekaman yang Anda unggah. Antarmukanya memakai React dan backend-nya memakai FastAPI.
 
 ## Run locally
 
-1. Install Python 3.10 or newer.
-2. Create and activate a virtual environment, then run `pip install -r requirements.txt`.
-3. Copy `.env.example` to `.env` and set `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, and `OPENAI_TRANSCRIPTION_MODEL` for your provider.
-4. Run `uvicorn app:app --host 127.0.0.1 --port 8000`.
-5. Open http://127.0.0.1:8000.
+1. Pasang Python 3.10+ dan Node.js 20+.
+2. Buat virtual environment Python, lalu jalankan `pip install -r requirements.txt`.
+3. Salin `.env.example` ke `.env`. Isi API key, base URL, model chat, dan model transkripsi dari provider Anda.
+4. Di folder `frontend`, jalankan `npm install` lalu `npm run build`.
+5. Kembali ke folder proyek. Jalankan `uvicorn app:app --host 127.0.0.1 --port 8000` dan buka http://127.0.0.1:8000.
 
-The app listens on localhost by default. Notes and transcripts are stored as JSON under `data/`; source audio is not retained. Keep this folder private. The owner reviews notes and can share them manually outside the app. The app does not yet include user accounts, a share workflow, or meeting-bot integrations.
+Untuk mengubah tampilan selama pengembangan, jalankan backend dan `npm run dev` di folder `frontend`. Buka alamat yang ditampilkan Vite. Permintaan `/api` akan diteruskan ke FastAPI.
 
-An OpenAI-compatible provider must implement `/chat/completions` and, when uploading audio, `/audio/transcriptions`.
+Notulen dan transkrip disimpan di folder `data/` pada komputer ini. Rekaman asli tidak disimpan. Periksa hasilnya sebelum membagikan file Markdown yang diunduh. Aplikasi ini ditujukan untuk penggunaan lokal; belum ada akun pengguna atau pengaturan akses jaringan.
+
+Provider OpenAI-compatible harus mendukung `/chat/completions`. Untuk unggahan audio, provider juga harus mendukung `/audio/transcriptions`.
